@@ -3,9 +3,8 @@
 #include <LittleFS.h>
 
 #include "DNSServer.h"
+#include "config.h"
 
-#define wifi_ssid "REMOVED_SSID"
-#define wifi_password "REMOVED_PASSWORD"
 #define LED_PIN LED_BUILTIN  // Onboard LED (GPIO2 on NodeMCU)
 
 const byte DNS_PORT = 53;
