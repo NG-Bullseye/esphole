@@ -21,14 +21,24 @@ This downloads the hosts file and saves it in different files in the *data* dire
 
 Follow the guide of [Arduino ESP8266 filesystem uploader](https://github.com/esp8266/arduino-esp8266fs-plugin) to install the SPIFFS uploader and then select: `Tools > ESP8266 Sketch Data Upload` in order to upload *data* directory to the ESP
 
+### Configure WiFi credentials
+
+Copy the example config file and add your WiFi credentials:
+
+    $ cp src/config.h.example src/config.h
+
+Then edit `src/config.h` with your WiFi settings:
+
+    #define wifi_ssid "YOUR_WIFI_SSID"
+    #define wifi_password "YOUR_WIFI_PASSWORD"
+
+**Note:** The `config.h` file is gitignored and will not be committed to the repository.
+
 ### Upload the sketch
 
-Open the sketch directory with Arduino editor and edit esphole.ino in order to change the WIFI settings
+Upload the sketch to the ESP using PlatformIO:
 
-    #define wifi_ssid "........"
-    #define wifi_password "........"
-
-Then, upload it to the ESP
+    $ pio run --target upload
 
 ## Usage/Test
 
