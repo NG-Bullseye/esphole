@@ -81,8 +81,8 @@ for source_name in ENABLED_SOURCES:
             # Clean and validate domain
             if domain:
                 domain = domain.lower().strip()
-                # Remove wildcards
-                domain = domain.replace('*', '').replace('www.', '')
+                # Remove wildcards and leading dots
+                domain = domain.replace('*', '').replace('www.', '').lstrip('.')
 
                 # Basic validation (has dot, not too long, no special chars)
                 if '.' in domain and len(domain) < 100 and domain.replace('.', '').replace('-', '').isalnum():

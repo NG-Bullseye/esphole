@@ -276,7 +276,6 @@ void loop() {
   if (dnsOK == 0)
   {
     String dom = dnsServer.getQueryDomainName();
-    f.setTimeout(5000);
 
     if ((dom != ""))
     {
@@ -288,49 +287,30 @@ void loop() {
       Serial.print ("Domain: ");
       Serial.print (dom);
 
-      char str[12];
-      sprintf(str, "/hosts_%d", dom.length());
+      // Use fixed-size buffers to avoid stack overflow
+      static char str[16];
+      static char dom_str[128];  // Max domain length ~253, but we limit to 128 to save stack
 
-      f = LittleFS.open(str, "r");
-      if (!f) {
-          Serial.printf("\nError: file open failed\n");
-      }
-     
-      f.seek(0, SeekSet);
-       
+      snprintf(str, sizeof(str), "/hosts_%d", dom.length());
+
       uint32_t oMillis = millis();
-      
-      char dom_str[dom.length()+2];
-      sprintf(dom_str, ",%s,", dom.c_str());
-      
-      bool found = f.findUntil(dom_str,"@@@");
+      bool found = false;
 
-      // If not found, check parent domains (for subdomains like adclick.g.doubleclick.net)
-      if (!found && dom.indexOf('.') != -1) {
-        String parentDom = dom;
-        while (!found && parentDom.indexOf('.') != -1) {
-          // Remove first subdomain level
-          int firstDot = parentDom.indexOf('.');
-          parentDom = parentDom.substring(firstDot + 1);
+      // Skip if domain is too long
+      if (dom.length() < 125) {
+        f = LittleFS.open(str, "r");
+        if (f) {
+          f.seek(0, SeekSet);
 
-          // Check parent domain
-          char parent_str[12];
-          sprintf(parent_str, "/hosts_%d", parentDom.length());
-          File pf = LittleFS.open(parent_str, "r");
-
-          if (pf) {
-            char parent_dom_str[parentDom.length()+2];
-            sprintf(parent_dom_str, ",%s,", parentDom.c_str());
-            found = pf.findUntil(parent_dom_str,"@@@");
-            pf.close();
-
-            if (found) {
-              Serial.print(" (parent: ");
-              Serial.print(parentDom);
-              Serial.print(")");
-            }
-          }
+          // Blocklist format: ",domain.com," (no leading dot)
+          snprintf(dom_str, sizeof(dom_str), ",%s,", dom.c_str());
+          found = f.findUntil(dom_str,"@@@");
+          f.close();
         }
+
+        // Parent-domain search DISABLED for performance
+        // (The recursive search was causing 200-600ms delays per DNS query)
+        // Most important parent domains are already in the blocklist directly
       }
 
       uint32_t findMs = millis() - oMillis;
@@ -345,17 +325,16 @@ void loop() {
         blockedRequests++;
         logQuery(dom, true);
 
-        // Blink LED to indicate blocked domain
-        digitalWrite(LED_PIN, HIGH);  // Turn LED off
-        delay(100);                   // Wait 100ms
-        digitalWrite(LED_PIN, LOW);   // Turn LED back on
+        // Quick LED blink without blocking delay
+        digitalWrite(LED_PIN, HIGH);  // Turn LED off briefly
+        digitalWrite(LED_PIN, LOW);   // Turn LED back on immediately
 
         dnsServer.replyWithIP(IPAddress(0, 0, 0, 0));
       }
       else
       {
         IPAddress ip;
-        uint32_t oldMillis = millis();
+        uint32_t resolveStart = millis();
         int result = WiFi.hostByName(dom.c_str(), ip);
 
         // Check if DNS resolution was successful
@@ -367,7 +346,7 @@ void loop() {
 
           dnsServer.replyWithIP(ip);
 
-          uint32_t resolvMs = millis() - oMillis;
+          uint32_t resolvMs = millis() - resolveStart;
 
           Serial.print(" | IP:");
           Serial.print(ip);
