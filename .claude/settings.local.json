@@ -4,7 +4,8 @@
       "Bash(python -m platformio run:*)",
       "Bash(python -m platformio device monitor:*)",
       "Bash(bash:*)",
-      "Bash(nslookup:*)"
+      "Bash(nslookup:*)",
+      "Bash(python:*)"
     ]
   }
 }

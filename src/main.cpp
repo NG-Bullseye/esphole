@@ -4,6 +4,7 @@
 
 #include "DNSServer.h"
 #include "config.h"
+#include "blocklist_crc32.h"
 
 #define LED_PIN LED_BUILTIN  // Onboard LED (GPIO2 on NodeMCU)
 
@@ -32,6 +33,8 @@ void handleToggle();
 void handleManifest();
 void logQuery(String domain, bool blocked);
 int find_text(String needle, String haystack);
+uint32_t calculateCRC32(const String& str);
+bool isBlockedDomain(const String& domain);
 
 void setup_wifi() {
   delay(10);
@@ -134,6 +137,50 @@ int find_text(String needle, String haystack) {
     }
   }
   return foundpos;
+}
+
+// CRC32 calculation (compatible with Python's zlib.crc32)
+uint32_t calculateCRC32(const String& str) {
+  uint32_t crc = 0xFFFFFFFF;
+
+  for (unsigned int i = 0; i < str.length(); i++) {
+    uint8_t byte = str[i];
+    crc = crc ^ byte;
+
+    for (uint8_t j = 0; j < 8; j++) {
+      uint32_t mask = -(crc & 1);
+      crc = (crc >> 1) ^ (0xEDB88320 & mask);
+    }
+  }
+
+  return ~crc;
+}
+
+// Binary search in PROGMEM array - O(log n)
+bool isBlockedDomain(const String& domain) {
+  uint32_t hash = calculateCRC32(domain);
+
+  int32_t left = 0;
+  int32_t right = BLOCKLIST_SIZE - 1;
+
+  while (left <= right) {
+    int32_t mid = left + (right - left) / 2;
+
+    // Read from Flash (PROGMEM)
+    uint32_t midVal = pgm_read_dword(&blocklist_crc32[mid]);
+
+    if (midVal == hash) {
+      return true;  // Found! Domain is blocked
+    }
+    else if (midVal < hash) {
+      left = mid + 1;
+    }
+    else {
+      right = mid - 1;
+    }
+  }
+
+  return false;  // Not found - domain is allowed
 }
 
 // Web Interface Handlers
@@ -287,32 +334,9 @@ void loop() {
       Serial.print ("Domain: ");
       Serial.print (dom);
 
-      // Use fixed-size buffers to avoid stack overflow
-      static char str[16];
-      static char dom_str[128];  // Max domain length ~253, but we limit to 128 to save stack
-
-      snprintf(str, sizeof(str), "/hosts_%d", dom.length());
-
+      // CRC32 + Binary Search - O(log n) lookup (~16 comparisons)
       uint32_t oMillis = millis();
-      bool found = false;
-
-      // Skip if domain is too long
-      if (dom.length() < 125) {
-        f = LittleFS.open(str, "r");
-        if (f) {
-          f.seek(0, SeekSet);
-
-          // Blocklist format: ",domain.com," (no leading dot)
-          snprintf(dom_str, sizeof(dom_str), ",%s,", dom.c_str());
-          found = f.findUntil(dom_str,"@@@");
-          f.close();
-        }
-
-        // Parent-domain search DISABLED for performance
-        // (The recursive search was causing 200-600ms delays per DNS query)
-        // Most important parent domains are already in the blocklist directly
-      }
-
+      bool found = isBlockedDomain(dom);
       uint32_t findMs = millis() - oMillis;
 
       // Check if blocking is enabled
