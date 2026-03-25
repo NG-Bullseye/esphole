@@ -30,9 +30,9 @@ SOURCES = {
 
 # Use smaller lists for ESP8266 (limited LittleFS space)
 # Comment out sources to reduce total domains
-# Actual LittleFS size is ~1MB (not 3MB), so use conservative list
-# OISD Small provides excellent coverage at ~50k domains
-ENABLED_SOURCES = ['oisd_basic']
+# With CRC32 binary search, we can handle more domains efficiently
+# Testing: OISD + Hagezi Light for better EU/DE ad coverage
+ENABLED_SOURCES = ['oisd_basic', 'hagezi_light']
 
 all_domains = set()
 
