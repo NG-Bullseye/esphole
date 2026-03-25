@@ -30,9 +30,9 @@ SOURCES = {
 
 # Use smaller lists for ESP8266 (limited LittleFS space)
 # Comment out sources to reduce total domains
-# With CRC32 binary search, we can handle more domains efficiently
-# Testing: OISD + Hagezi Light for better EU/DE ad coverage
-ENABLED_SOURCES = ['oisd_basic', 'hagezi_light']
+# Actual LittleFS size is ~1MB (not 3MB), so use conservative list
+# OISD Small provides excellent coverage at ~50k domains
+ENABLED_SOURCES = ['oisd_basic']
 
 all_domains = set()
 
@@ -186,9 +186,9 @@ with open(header_file, 'w', encoding='utf-8') as f:
     f.write("#endif // BLOCKLIST_CRC32_H\n")
 
 header_size = header_file.stat().st_size
-print(f"[OK] Header file size: {header_size:,} bytes ({header_size / 1024:.1f} KB)")
-print(f"[OK] Binary search depth: log2({len(crc32_list)}) = ~{len(crc32_list).bit_length()} comparisons")
-print(f"[OK] Expected lookup time: ~{len(crc32_list).bit_length()}ms (vs 180-900ms currently)")
+print(f"✓ Header file size: {header_size:,} bytes ({header_size / 1024:.1f} KB)")
+print(f"✓ Binary search depth: log2({len(crc32_list)}) = ~{len(crc32_list).bit_length()} comparisons")
+print(f"✓ Expected lookup time: ~{len(crc32_list).bit_length()}ms (vs 180-900ms currently)")
 
 print("\n[Next step] Upload to NodeMCU")
 print("   Run: pio run --target upload")
